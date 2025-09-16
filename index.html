@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Classificação de Emails</title>
+  <link rel="shortcut icon" href="/img/email.png" type="image/x-icon">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.9.179/pdf.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-6">
+
+  <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-2xl">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">Classificação de Emails</h1>
+
+    <form id="emailForm" class="flex flex-col gap-4">
+      <label class="font-semibold text-gray-700">Insira o texto do email:</label>
+      <textarea id="emailText" placeholder="Cole o texto do email aqui..."
+        class="w-full h-32 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"></textarea>
+
+      <label class="font-semibold text-gray-700">Ou faça upload de um arquivo (.txt ou .pdf):</label>
+      <input type="file" id="emailFile" accept=".txt,.pdf"
+        class="border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+
+      <button type="button" onclick="processEmail()"
+        class="mt-2 w-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg transition">
+        Processar Email
+      </button>
+    </form>
+
+    <div id="loading" class="mt-4 text-center text-gray-500 hidden">Classificando...</div>
+
+    <div id="result" class="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg hidden">
+      <p class="text-lg font-semibold">Categoria: <span id="categoria" class="text-indigo-600"></span></p>
+      <p class="mt-2 font-medium">Resposta sugerida:</p>
+      <p id="resposta" class="mt-1 text-gray-700"></p>
+    </div>
+  </div>
+
+  <script>
+    async function processEmail() {
+      const text = document.getElementById("emailText").value.trim();
+      const file = document.getElementById("emailFile").files[0];
+
+      if (!text && !file) return alert("Insira o texto ou faça upload de um arquivo.");
+
+      document.getElementById("loading").classList.remove("hidden");
+      document.getElementById("result").classList.add("hidden");
+
+      let emailContent = text;
+
+      if (file) {
+        if (file.type === "text/plain") {
+          emailContent = await file.text();
+        } else if (file.type === "application/pdf") {
+          emailContent = await readPdf(file);
+        } else {
+          alert("Formato de arquivo não suportado!");
+          document.getElementById("loading").classList.add("hidden");
+          return;
+        }
+      }
+
+      try {
+        const formData = new FormData();
+        formData.append("text", emailContent);
+
+        const response = await fetch("http://127.0.0.1:8000/classify/", { method: "POST", body: formData });
+        const data = await response.json();
+
+        document.getElementById("categoria").textContent = data.classificacao.categoria;
+        document.getElementById("resposta").textContent = data.classificacao.resposta;
+        document.getElementById("result").classList.remove("hidden");
+      } catch (error) {
+        alert("Erro ao processar o email: " + error);
+      } finally {
+        document.getElementById("loading").classList.add("hidden");
+      }
+    }
+
+    async function readPdf(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async function() {
+          const typedArray = new Uint8Array(this.result);
+          pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.9.179/pdf.worker.min.js';
+          const pdf = await pdfjsLib.getDocument(typedArray).promise;
+          let text = '';
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            text += content.items.map(item => item.str).join(' ') + '\n';
+          }
+          resolve(text);
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      });
+    }
+  </script>
+
+</body>
+</html>
