@@ -10,7 +10,7 @@ Este é o **frontend** de um sistema de classificação de emails. A aplicação
 
 - HTML5
 - Tailwind CSS
-- JavaScript (Vanilla)
+- JavaScript 
 - PDF.js (para leitura de arquivos PDF)
 
 ---
