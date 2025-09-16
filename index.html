@@ -66,9 +66,12 @@
 
         const response = await fetch("http://127.0.0.1:8000/classify/", { method: "POST", body: formData });
         const data = await response.json();
+        const classificacao = JSON.parse(data.classificacao)
+        
+       
 
-        document.getElementById("categoria").textContent = data.classificacao.categoria;
-        document.getElementById("resposta").textContent = data.classificacao.resposta;
+        document.getElementById("categoria").textContent = classificacao.categoria;
+        document.getElementById("resposta").textContent = classificacao.resposta;
         document.getElementById("result").classList.remove("hidden");
       } catch (error) {
         alert("Erro ao processar o email: " + error);
